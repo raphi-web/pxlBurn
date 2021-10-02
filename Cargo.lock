@@ -170,6 +170,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
+name = "float_next_after"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fc612c5837986b7104a87a0df74a5460931f1c5274be12f8d0f40aa2f30d632"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "gdal"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -234,6 +243,17 @@ dependencies = [
  "num-traits",
  "robust",
  "rstar",
+]
+
+[[package]]
+name = "geo-booleanop"
+version = "0.3.2"
+source = "git+https://github.com/21re/rust-geo-booleanop#188f016e44a3ec737ce8e279215caf558443de89"
+dependencies = [
+ "float_next_after",
+ "geo-types",
+ "num-traits",
+ "robust",
 ]
 
 [[package]]
@@ -416,17 +436,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "pxlBurn-rec"
+name = "pxlBurn"
 version = "0.1.0"
 dependencies = [
  "crossbeam",
  "gdal",
  "geo",
+ "geo-booleanop",
  "geo-types",
  "geojson",
  "indicatif",
  "structopt",
- "wkt",
 ]
 
 [[package]]
@@ -655,14 +675,3 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-
-[[package]]
-name = "wkt"
-version = "0.9.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3cb4f61f748cb9de30eef5508a212c6edf9c0926847247fcad7ec969907112a"
-dependencies = [
- "geo-types",
- "num-traits",
- "thiserror",
-]

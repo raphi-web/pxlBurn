@@ -1,4 +1,8 @@
 use geo::intersects::Intersects;
+extern crate geo_booleanop;
+use geo_booleanop::boolean::BooleanOp;
+
+use std::convert::TryInto;
 
 #[derive(Clone)]
 pub struct Tile {
@@ -189,16 +193,42 @@ impl Tile {
         return tile;
     }
 
-    pub fn burn_from_vector(&mut self, geom: &geo_types::Geometry<f64>, burn_value: u8) -> Tile {
+    pub fn burn_from_vector(&mut self, geom: &geo::Geometry<f64>, burn_value: u8) -> Tile {
         /* Sets the pixelvalue of a tile equal to a given burn value if a geometry object
         like Polygon overlaps the bounds of the raster
         */
+
+        let feature_vector = match geom.clone() {
+            geo::Geometry::GeometryCollection(geo::GeometryCollection(v)) => v,
+            _ => unreachable!(),
+        };
+   
+        let mut new_feature_vector:Vec<geo::MultiPolygon<f64>> = vec![];
+        for feature in feature_vector.iter() {
+            let poly_feature:geo::MultiPolygon<f64> = match feature {
+                geo::Geometry::MultiPolygon(v) => v.clone(),
+                geo::Geometry::Polygon(v) =>{
+                    let x = vec![v.clone()];
+                    let y: geo::MultiPolygon<f64> = x.try_into().unwrap();
+                    y
+                },
+                   
+                _ => unreachable!()
+            };
+            let clipped_poly = poly_feature.intersection(&self.rectangle);
+            new_feature_vector.push(clipped_poly);
+
+        }
+      
+        let geom: geo::Geometry<f64> = geo::Geometry::GeometryCollection(geo::GeometryCollection(feature_vector));
+
+
         let mut new_tile = self.clone();
         if self.raster.len() == 0 {
             let mut new_sub_tiles: Vec<Tile> = Vec::new();
             for t in new_tile.sub_tiles.iter() {
                 if geom.intersects(&t.rectangle) {
-                    let t = t.clone().burn_from_vector(geom, burn_value);
+                    let t = t.clone().burn_from_vector(&geom, burn_value);
                     new_sub_tiles.push(t);
                 } else {
                     new_sub_tiles.push(t.clone());
@@ -207,7 +237,7 @@ impl Tile {
             new_tile.sub_tiles = new_sub_tiles;
             return new_tile;
         } else {
-            new_tile.burn(geom, burn_value);
+            new_tile.burn(&geom, burn_value);
             return new_tile;
         }
     }
@@ -252,7 +282,7 @@ fn get_coordinates(
     return (x, y);
 }
 
-fn mk_rectangle(bounds: (f64, f64, f64, f64)) -> geo_types::Polygon<f64> {
+fn mk_rectangle(bounds: (f64, f64, f64, f64)) -> geo::Polygon<f64> {
     /*Helper functon that returns a rectangle */
     let (left, bottom, right, top) = bounds;
     let polygon = geo::Polygon::new(

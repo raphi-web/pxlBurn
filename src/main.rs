@@ -112,7 +112,7 @@ fn main() {
     let geom: geo_types::Geometry<f64> = geojson.try_into().unwrap();
 
     // tile the raster
-    let min_tile_shape = 8;
+    let min_tile_shape = 32;
     let (mut mrows, mut mcols) = (rows.clone(), cols.clone());
     let mut number_of_splits: usize = 0;
     loop {
