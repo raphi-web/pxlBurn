@@ -1,5 +1,5 @@
 # pxlBurn
-Fast Rust based rasterization Tool based on Quadtrees. 
+Fast Rust based rasterization tool based on quadtrees. 
 
 
 ![pxlBurn vs GDAL](sample_imgs/pxlBurnGDAL.png?raw=true "Title")  
