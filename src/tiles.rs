@@ -4,9 +4,10 @@ use geo_booleanop::boolean::BooleanOp;
 
 use std::convert::TryInto;
 
+use std::thread::{self, JoinHandle};
 #[derive(Clone)]
 pub struct Tile {
-        /*
+    /*
     A struct representing a tile of a raster.
     One Tile can hold sub_tiles which are also of object tile.
     A Tile can hold raster which is a 2D Vector representing the Pixels
@@ -14,7 +15,7 @@ pub struct Tile {
 
     When splitting one tile into multiple subtiles, the value of raster is emptied and moved to the
     subtiles.
-    
+
     */
     pub origin: (usize, usize),
     pub shape: (usize, usize),
@@ -23,10 +24,10 @@ pub struct Tile {
     pub resolution: (f64, f64),
     pub sub_tiles: Vec<Tile>,
     pub raster: Vec<Vec<f64>>,
+    pub mother: bool,
 }
 
 impl Tile {
-
     pub fn new(
         raster: &Vec<Vec<f64>>,
         bounds: (f64, f64, f64, f64),
@@ -45,12 +46,12 @@ impl Tile {
             sub_tiles: sub_tiles,
             raster: raster.clone(),
             resolution: resolution,
+            mother: true,
         }
     }
 
     pub fn split(&mut self) {
-
-        /*Splits a Tile into 4 Parts each part is of type tile and corresponds to 
+        /*Splits a Tile into 4 Parts each part is of type tile and corresponds to
         North-East, Nort-West, South-East, South-West part of the tile/raster */
         if self.sub_tiles.len() == 0 {
             let (nrows, ncols) = self.shape;
@@ -137,6 +138,7 @@ impl Tile {
                     sub_tiles: Vec::<Tile>::new(),
                     raster: quadrents[i].clone(),
                     resolution: self.resolution,
+                    mother: false,
                 };
 
                 new_tiles.push(nt);
@@ -160,20 +162,47 @@ impl Tile {
 
         if self.raster.len() == 0 {
             let mut new_rast: Vec<Vec<f64>> = vec![vec![0.; ncols]; nrows];
+            let mut threads: Vec<JoinHandle<(Vec<Vec<f64>>, (usize, usize))>> = Vec::new();
 
-            for p in self.sub_tiles.iter() {
-                let (rast, origin) = p.recompose();
-                let (p_rows, p_cols) = (rast.len(), rast[0].len());
+            if self.mother {
+                for p in self.sub_tiles.iter() {
+                    let p = p.clone();
+                    let t = thread::spawn(move || {
+                        let (rast, origin) = p.recompose();
+                        (rast, origin)
+                    });
+                    threads.push(t);
+                }
 
-                let (mut ii, mut jj) = (0, 0);
-                for i in origin.0..(origin.0 + p_rows) {
-                    for j in origin.1..origin.1 + p_cols {
-                        new_rast[i][j] = rast[ii][jj];
+                for t in threads {
+                    let (rast, origin) = t.join().unwrap();
+                    let (p_rows, p_cols) = (rast.len(), rast[0].len());
+                    let (mut ii, mut jj) = (0, 0);
+                    for i in origin.0..(origin.0 + p_rows) {
+                        for j in origin.1..origin.1 + p_cols {
+                            new_rast[i][j] = rast[ii][jj];
 
-                        jj += 1;
+                            jj += 1;
+                        }
+                        ii += 1;
+                        jj = 0;
                     }
-                    ii += 1;
-                    jj = 0;
+                }
+            } else {
+                for p in self.sub_tiles.iter() {
+                    let (rast, origin) = p.recompose();
+                    let (p_rows, p_cols) = (rast.len(), rast[0].len());
+
+                    let (mut ii, mut jj) = (0, 0);
+                    for i in origin.0..(origin.0 + p_rows) {
+                        for j in origin.1..origin.1 + p_cols {
+                            new_rast[i][j] = rast[ii][jj];
+
+                            jj += 1;
+                        }
+                        ii += 1;
+                        jj = 0;
+                    }
                 }
             }
 
@@ -202,39 +231,63 @@ impl Tile {
             geo::Geometry::GeometryCollection(geo::GeometryCollection(v)) => v,
             _ => unreachable!(),
         };
-   
-        let mut new_feature_vector:Vec<geo::MultiPolygon<f64>> = vec![];
+
+        let mut new_feature_vector: Vec<geo::MultiPolygon<f64>> = vec![];
         for feature in feature_vector.iter() {
-            let poly_feature:geo::MultiPolygon<f64> = match feature {
+            let poly_feature: geo::MultiPolygon<f64> = match feature {
                 geo::Geometry::MultiPolygon(v) => v.clone(),
-                geo::Geometry::Polygon(v) =>{
+                geo::Geometry::Polygon(v) => {
                     let x = vec![v.clone()];
                     let y: geo::MultiPolygon<f64> = x.try_into().unwrap();
                     y
-                },
-                   
-                _ => unreachable!()
+                }
+
+                _ => unreachable!(),
             };
             let clipped_poly = poly_feature.intersection(&self.rectangle);
             new_feature_vector.push(clipped_poly);
-
         }
-      
-        let geom: geo::Geometry<f64> = geo::Geometry::GeometryCollection(geo::GeometryCollection(feature_vector));
 
+        let geom: geo::Geometry<f64> =
+            geo::Geometry::GeometryCollection(geo::GeometryCollection(feature_vector));
 
         let mut new_tile = self.clone();
         if self.raster.len() == 0 {
-            let mut new_sub_tiles: Vec<Tile> = Vec::new();
-            for t in new_tile.sub_tiles.iter() {
-                if geom.intersects(&t.rectangle) {
-                    let t = t.clone().burn_from_vector(&geom, burn_value);
-                    new_sub_tiles.push(t);
-                } else {
-                    new_sub_tiles.push(t.clone());
+            if self.mother {
+                let mut threads: Vec<JoinHandle<Tile>> = Vec::new();
+                for t in new_tile.sub_tiles.iter() {
+                    let geom = geom.clone();
+                    let t = t.clone();
+                    let thread = thread::spawn(move || {
+                        if geom.intersects(&t.rectangle) {
+                            let t = t.clone().burn_from_vector(&geom, burn_value);
+                            t
+                        } else {
+                            t.clone()
+                        }
+                    });
+                    threads.push(thread);
                 }
+
+                let mut new_sub_tiles: Vec<Tile> = Vec::new();
+                for t in threads {
+                    let value = t.join().unwrap();
+                    new_sub_tiles.push(value);
+                }
+                new_tile.sub_tiles = new_sub_tiles;
+            } else {
+                let mut new_sub_tiles: Vec<Tile> = Vec::new();
+                for t in new_tile.sub_tiles.iter() {
+                    if geom.intersects(&t.rectangle) {
+                        let t = t.clone().burn_from_vector(&geom, burn_value);
+                        new_sub_tiles.push(t);
+                    } else {
+                        new_sub_tiles.push(t.clone());
+                    }
+                }
+                new_tile.sub_tiles = new_sub_tiles;
             }
-            new_tile.sub_tiles = new_sub_tiles;
+
             return new_tile;
         } else {
             new_tile.burn(&geom, burn_value);
