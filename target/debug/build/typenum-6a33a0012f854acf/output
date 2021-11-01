@@ -1,0 +1,2 @@
+cargo:rustc-env=TYPENUM_BUILD_CONSTS=/home/raphi/Dokumente/Programming/Rust/pxlBurn/target/debug/build/typenum-6a33a0012f854acf/out/consts.rs
+cargo:rustc-env=TYPENUM_BUILD_OP=/home/raphi/Dokumente/Programming/Rust/pxlBurn/target/debug/build/typenum-6a33a0012f854acf/out/op.rs

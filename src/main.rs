@@ -4,17 +4,15 @@ extern crate geojson;
 extern crate indicatif;
 extern crate structopt;
 
-use geojson::GeoJson;
 use gdal::raster::{Buffer, RasterBand};
 use gdal::Dataset;
-
+use geojson::GeoJson;
 use std::convert::TryInto;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{f64, fs};
-
 use structopt::StructOpt;
-
+use std::sync::{Arc, Mutex};
 mod tiles;
 
 #[derive(StructOpt)]
@@ -66,15 +64,17 @@ fn main() {
         transform[5],
     );
     let bounds = (
-        ul_left,
-        ul_top + yres * rows as f64,
-        ul_left - xres * cols as f64,
-        ul_top,
+        ul_left,                      // left
+        ul_top + yres * rows as f64,  // bottom
+        ul_left + xres * cols as f64, // right
+        ul_top,                       // top
     );
 
     let size: i64 = (rows * cols) as i64;
     let mut rast_vals: Vec<u32> = vec![0; size as usize];
 
+
+    // load the raster data into a vector of vectors rows x columns 
     let rast = if set_zero {
         // create new raster with shape of input raster
         vec![vec![0.; cols]; rows]
@@ -105,16 +105,21 @@ fn main() {
         nrast
     };
 
+
+    // for multithreading convert raster to Arc<Mutex<T>> ???
+    let mut rast=Arc::new(Mutex::new(rast));
+
     // read the geojson
     let geojson_str =
         fs::read_to_string(input_geojson).expect("Something went wrong reading the GeoJson");
     let geojson = GeoJson::from_str(&geojson_str).expect("Error: Could not decode GeoJson");
     let geom: geo_types::Geometry<f64> = geojson.try_into().unwrap();
 
-    // tile the raster
-    let min_tile_shape = 32;
+    // calculate the number of tile splits for the raster
+    let min_tile_shape = 8;
     let (mut mrows, mut mcols) = (rows.clone(), cols.clone());
-    let mut number_of_splits: usize = 0;
+    let mut number_of_splits: usize = 1;
+
     loop {
         mrows /= 4;
         mcols /= 4;
@@ -127,15 +132,32 @@ fn main() {
             break;
         }
     }
-    // split the raster into tiles
-    let tile = tiles::Tile::new(&rast, bounds, (0, 0), (xres, yres));
-    let mut tile = tile.split_ntimes(number_of_splits);
-    let tile = tile.burn_from_vector(&geom, burn_value);
 
-    let (x, _y) = tile.recompose();
+    print!("Splits:{},  ", number_of_splits);
+
+    // generate the tile
+    let mut tile = tiles::Tile::new((rows, cols), bounds, (0, 0), (xres, yres));
+
+    // split the tile into nSplits
+    tile.split(number_of_splits);
+
+    // burn the geometry into the tile
+    let num_cpu_cors = num_cpus::get();
+    let num_threds = if num_cpu_cors > 2 {num_cpu_cors/2} else {1};
+    print!("nThreads: {},  ", num_threds);
+    tile.burn(geom, &mut rast, burn_value.into(),num_threds);
+
+
+    // use a clojure to move the ruster so it is dropped afterwards ?
+    // flatten the raster from 2D to 1D
     let mut new_rast_vals: Vec<f64> = Vec::new();
-    for row in x.iter() {
-        new_rast_vals.append(&mut row.clone());
+    let rast = rast.lock().unwrap();
+    let rast = &*rast;
+ 
+    for row in rast.iter() {
+        for value in row.iter() {
+            new_rast_vals.push(*value)
+        }
     }
 
     let driver = gdal::Driver::get("GTiff").unwrap();
@@ -157,13 +179,11 @@ fn main() {
     let mut rb = dataset.rasterband(1).unwrap();
     let buff: Buffer<f64> = Buffer {
         size: (cols, rows),
-        data: new_rast_vals.to_vec(),
+        data: new_rast_vals,
     };
 
     rb.write((0, 0), (cols, rows), &buff)
         .expect("Error writing new Raster to band");
-    
+
     println!("Done!");
 }
-
-

@@ -1,0 +1,16 @@
+GDAL version string: "GDAL 3.2.2, released 2021/03/05"
+GDAL semver string: "3.2.2"
+cargo:rustc-cfg=gdal_3
+cargo:rustc-cfg=gdal_3_2
+cargo:rustc-cfg=gdal_3_2_2
+cargo:rustc-cfg=major_is_3
+cargo:rustc-cfg=minor_is_2
+cargo:rustc-cfg=patch_is_2
+cargo:rustc-cfg=major_ge_2
+cargo:rustc-cfg=major_ge_3
+cargo:rustc-cfg=minor_ge_0
+cargo:rustc-cfg=minor_ge_1
+cargo:rustc-cfg=minor_ge_2
+cargo:rustc-cfg=patch_ge_0
+cargo:rustc-cfg=patch_ge_1
+cargo:rustc-cfg=patch_ge_2
