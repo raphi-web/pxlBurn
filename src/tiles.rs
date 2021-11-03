@@ -2,10 +2,10 @@ use geo::intersects::Intersects;
 extern crate geo_booleanop;
 
 use std::convert::TryFrom;
-use wkt::ToWkt;
-use wkt::{self};
 use std::sync::{Arc, Mutex};
 use std::thread::{self};
+use wkt::ToWkt;
+use wkt::{self};
 #[derive(Clone)]
 pub struct Tile {
     /*
@@ -85,8 +85,14 @@ impl Tile {
 
         intersecting_tiles
     }
-   
-    pub fn burn(&self, geom: geo::Geometry<f64>, raster: &mut  Arc<Mutex< Vec<Vec<f64>>>>, burn_value: f64, nthreads:usize) {
+
+    pub fn burn(
+        &self,
+        geom: geo::Geometry<f64>,
+        raster: &mut Arc<Mutex<Vec<Vec<f64>>>>,
+        burn_value: f64,
+        nthreads: usize,
+    ) {
         /*
         Burns a given value into a raster, by getting the indexes of the pixel that intersect from
         the  intersectsTile, it then iterates over the Tiles and checks if the remaining pixels
@@ -95,62 +101,61 @@ impl Tile {
         */
         let tile_vec = self.intersects_tile(&geom);
         let ntiles = tile_vec.len();
-        let chunck_size = ntiles/nthreads;
+        let chunck_size = ntiles / nthreads;
 
-        let mut chunks:Vec<Vec<Tile>> = Vec::new();
-        let mut i = 0; 
+        let mut chunks: Vec<Vec<Tile>> = Vec::new();
+        let mut i = 0;
         loop {
-         let stop = if ntiles > i+chunck_size {i + chunck_size} else {ntiles};   
-         let chunk = tile_vec[i..stop].to_vec();
-         chunks.push(chunk);
-         i += chunck_size;   
+            let stop = if ntiles > i + chunck_size {
+                i + chunck_size
+            } else {
+                ntiles
+            };
+            let chunk = tile_vec[i..stop].to_vec();
+            chunks.push(chunk);
+            i += chunck_size;
 
-         if i > ntiles {
-            break; 
+            if i > ntiles {
+                break;
+            }
         }
-        }
-        
+
         let mut handles = vec![];
         for chunk in chunks {
             let geometry = geom.clone();
             let bounds = self.bounds;
             let rast = Arc::clone(raster);
-            let handle = thread::spawn(
-                move || {
-                    for t in chunk.iter() {
-                        let (nrows, ncols) = t.shape;
-                        let (o_row, o_col) = t.origin;
-                        let bounds = bounds;
-                        let res = t.resolution;
+            let handle = thread::spawn(move || {
+                for t in chunk.iter() {
+                    let (nrows, ncols) = t.shape;
+                    let (o_row, o_col) = t.origin;
+                    let bounds = bounds;
+                    let res = t.resolution;
 
-                        for r in o_row..o_row + nrows {
-                            for c in o_col..o_col + ncols {
-                                let (x, y) = get_coordinates(r, c, res, bounds.0, bounds.3);
-                                let left = x - (res.0 / 2.);
-                                let right = x + (res.0 / 2.);
-                                let bottom = y - (res.1 / 2.);
-                                let top = y + (res.1 / 2.);
-            
-                                let pxl_poly = mk_rectangle((left, bottom, right, top));
-            
-                                if pxl_poly.intersects(&geometry) {
-                                    let mut raster = rast.lock().unwrap();
-                                    raster[r][c] = burn_value;
-                                }
+                    for r in o_row..o_row + nrows {
+                        for c in o_col..o_col + ncols {
+                            let (x, y) = get_coordinates(r, c, res, bounds.0, bounds.3);
+                            let left = x - (res.0 / 2.);
+                            let right = x + (res.0 / 2.);
+                            let bottom = y - (res.1 / 2.);
+                            let top = y + (res.1 / 2.);
+
+                            let pxl_poly = mk_rectangle((left, bottom, right, top));
+
+                            if pxl_poly.intersects(&geometry) {
+                                let mut raster = rast.lock().unwrap();
+                                raster[r][c] = burn_value;
                             }
                         }
                     }
                 }
-            );
+            });
             handles.push(handle);
-
-
         }
 
-        for h in handles{
+        for h in handles {
             h.join().unwrap()
         }
-       
     }
 
     pub fn export(&self) {
@@ -242,7 +247,7 @@ impl Tile {
 pub fn mk_rectangle(bounds: (f64, f64, f64, f64)) -> geo::Polygon<f64> {
     /*Helper functon that returns a rectangle */
     let (left, bottom, right, top) = bounds;
-    
+
     geo::Polygon::new(
         geo_types::LineString::from(vec![
             (left, bottom),

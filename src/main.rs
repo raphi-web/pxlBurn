@@ -10,9 +10,9 @@ use geojson::GeoJson;
 use std::convert::TryInto;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 use std::{f64, fs};
 use structopt::StructOpt;
-use std::sync::{Arc, Mutex};
 mod tiles;
 
 #[derive(StructOpt)]
@@ -73,8 +73,7 @@ fn main() {
     let size: i64 = (rows * cols) as i64;
     let mut rast_vals: Vec<u32> = vec![0; size as usize];
 
-
-    // load the raster data into a vector of vectors rows x columns 
+    // load the raster data into a vector of vectors rows x columns
     let rast = if set_zero {
         // create new raster with shape of input raster
         vec![vec![0.; cols]; rows]
@@ -105,9 +104,8 @@ fn main() {
         nrast
     };
 
-
     // for multithreading convert raster to Arc<Mutex<T>> ???
-    let mut rast=Arc::new(Mutex::new(rast));
+    let mut rast = Arc::new(Mutex::new(rast));
 
     // read the geojson
     let geojson_str =
@@ -143,17 +141,20 @@ fn main() {
 
     // burn the geometry into the tile
     let num_cpu_cors = num_cpus::get();
-    let num_threds = if num_cpu_cors > 2 {num_cpu_cors/2} else {1};
+    let num_threds = if num_cpu_cors > 2 {
+        num_cpu_cors / 2
+    } else {
+        1
+    };
     print!("nThreads: {},  ", num_threds);
-    tile.burn(geom, &mut rast, burn_value.into(),num_threds);
-
+    tile.burn(geom, &mut rast, burn_value.into(), num_threds);
 
     // use a clojure to move the ruster so it is dropped afterwards ?
     // flatten the raster from 2D to 1D
     let mut new_rast_vals: Vec<f64> = Vec::new();
     let rast = rast.lock().unwrap();
     let rast = &*rast;
- 
+
     for row in rast.iter() {
         for value in row.iter() {
             new_rast_vals.push(*value)
