@@ -1,6 +1,6 @@
 use geo::intersects::Intersects;
 extern crate geo_booleanop;
-use geo_types;
+
 use std::convert::TryFrom;
 use wkt::ToWkt;
 use wkt::{self};
@@ -32,9 +32,9 @@ impl Tile {
         let cols = shape.1;
 
         Self {
-            resolution: resolution,
-            origin: origin,
-            bounds: bounds,
+            resolution,
+            origin,
+            bounds,
             shape: (rows, cols),
             rectangle: mk_rectangle(bounds),
             parts: None,
@@ -75,7 +75,7 @@ impl Tile {
                 match &tile.parts {
                     Some(tile_vec) => {
                         for t in tile_vec {
-                            intersects(&t, geom, intersecting_tiles)
+                            intersects(t, geom, intersecting_tiles)
                         }
                     }
                     _ => intersecting_tiles.push(tile.clone()),
@@ -113,8 +113,8 @@ impl Tile {
         let mut handles = vec![];
         for chunk in chunks {
             let geometry = geom.clone();
-            let bounds = self.bounds.clone();
-            let rast = Arc::clone(&raster);
+            let bounds = self.bounds;
+            let rast = Arc::clone(raster);
             let handle = thread::spawn(
                 move || {
                     for t in chunk.iter() {
@@ -242,7 +242,8 @@ impl Tile {
 pub fn mk_rectangle(bounds: (f64, f64, f64, f64)) -> geo::Polygon<f64> {
     /*Helper functon that returns a rectangle */
     let (left, bottom, right, top) = bounds;
-    let polygon = geo::Polygon::new(
+    
+    geo::Polygon::new(
         geo_types::LineString::from(vec![
             (left, bottom),
             (left, top),
@@ -251,8 +252,7 @@ pub fn mk_rectangle(bounds: (f64, f64, f64, f64)) -> geo::Polygon<f64> {
             (left, bottom),
         ]),
         vec![],
-    );
-    return polygon;
+    )
 }
 
 pub fn get_coordinates(
@@ -265,5 +265,5 @@ pub fn get_coordinates(
 ) -> (f64, f64) {
     let x = left + (resolution.0 / 2.0) + ((col as f64) * resolution.0);
     let y = top + (resolution.1 / 2.0) + ((row as f64) * resolution.1);
-    return (x, y);
+    (x, y)
 }
