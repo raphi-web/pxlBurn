@@ -186,5 +186,5 @@ fn main() {
     rb.write((0, 0), (cols, rows), &buff)
         .expect("Error writing new Raster to band");
 
-    println!("Done!");
+    println!("done!");
 }

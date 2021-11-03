@@ -117,8 +117,8 @@ impl Tile {
                 };
                 let chunk = tile_vec[i..stop].to_vec();
                 chunks.push(chunk);
-                i += chunck_size;
 
+                i += chunck_size;
                 if i > ntiles {
                     break;
                 }
