@@ -99,25 +99,32 @@ impl Tile {
         in the tiles intersect with the geometry
 
         */
+
+        println!("Begin Burn");
         let tile_vec = self.intersects_tile(&geom);
         let ntiles = tile_vec.len();
+
         let chunck_size = ntiles / nthreads;
 
         let mut chunks: Vec<Vec<Tile>> = Vec::new();
-        let mut i = 0;
-        loop {
-            let stop = if ntiles > i + chunck_size {
-                i + chunck_size
-            } else {
-                ntiles
-            };
-            let chunk = tile_vec[i..stop].to_vec();
-            chunks.push(chunk);
-            i += chunck_size;
+        if ntiles > 1 {
+            let mut i = 0;
+            loop {
+                let stop = if ntiles > i + chunck_size {
+                    i + chunck_size
+                } else {
+                    ntiles
+                };
+                let chunk = tile_vec[i..stop].to_vec();
+                chunks.push(chunk);
+                i += chunck_size;
 
-            if i > ntiles {
-                break;
+                if i > ntiles {
+                    break;
+                }
             }
+        } else {
+            chunks.push(tile_vec);
         }
 
         let mut handles = vec![];

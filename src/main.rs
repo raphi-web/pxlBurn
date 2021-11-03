@@ -114,7 +114,7 @@ fn main() {
     let geom: geo_types::Geometry<f64> = geojson.try_into().unwrap();
 
     // calculate the number of tile splits for the raster
-    let min_tile_shape = 8;
+    let min_tile_shape = 16;
     let (mut mrows, mut mcols) = (rows, cols);
     let mut number_of_splits: usize = 1;
 
