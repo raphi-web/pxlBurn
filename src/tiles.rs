@@ -100,7 +100,7 @@ impl Tile {
 
         */
 
-        println!("Begin Burn");
+        print!("begin burn..");
         let tile_vec = self.intersects_tile(&geom);
         let ntiles = tile_vec.len();
 
