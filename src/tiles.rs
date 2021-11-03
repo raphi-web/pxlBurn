@@ -107,7 +107,7 @@ impl Tile {
         let chunck_size = ntiles / nthreads;
 
         let mut chunks: Vec<Vec<Tile>> = Vec::new();
-        if ntiles > 8 {
+        if ntiles > 4 {
             let mut i = 0;
             loop {
                 let stop = if ntiles > i + chunck_size {
