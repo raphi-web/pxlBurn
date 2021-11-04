@@ -88,7 +88,7 @@ impl Tile {
 
     pub fn burn(
         &self,
-        geom: geo::Geometry<f64>,
+        geom: Arc<geo::Geometry<f64>>,
         raster: &mut Arc<Mutex<Vec<Vec<f64>>>>,
         burn_value: f64,
         nthreads: usize,
@@ -129,8 +129,8 @@ impl Tile {
 
         let mut handles = vec![];
         for chunk in chunks {
-            let geometry = geom.clone();
             let bounds = self.bounds;
+            let geometry = Arc::clone(&geom);
             let rast = Arc::clone(raster);
             let handle = thread::spawn(move || {
                 for t in chunk.iter() {
@@ -149,7 +149,7 @@ impl Tile {
 
                             let pxl_poly = mk_rectangle((left, bottom, right, top));
 
-                            if pxl_poly.intersects(&geometry) {
+                            if pxl_poly.intersects(&*geometry) {
                                 let mut raster = rast.lock().unwrap();
                                 raster[r][c] = burn_value;
                             }

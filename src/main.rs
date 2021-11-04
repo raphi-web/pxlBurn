@@ -147,7 +147,8 @@ fn main() {
         1
     };
     print!("nThreads: {},  ", num_threds);
-    tile.burn(geom, &mut rast, burn_value.into(), num_threds);
+    let geom_arc = Arc::new(geom);
+    tile.burn(geom_arc, &mut rast, burn_value.into(), num_threds);
 
     // use a clojure to move the ruster so it is dropped afterwards ?
     // flatten the raster from 2D to 1D
