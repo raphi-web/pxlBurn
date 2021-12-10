@@ -1,3 +1,9 @@
+/* 
+PixlBurn burns GeoJson to a Raster 
+
+*/
+
+
 extern crate geo;
 extern crate geo_types;
 extern crate geojson;
@@ -71,7 +77,7 @@ fn main() {
     );
 
     let size: i64 = (rows * cols) as i64;
-    let mut rast_vals: Vec<u32> = vec![0; size as usize];
+    let mut rast_vals: Vec<f64> = vec![0.; size as usize];
 
     // load the raster data into a vector of vectors rows x columns
     let rast = if set_zero {
